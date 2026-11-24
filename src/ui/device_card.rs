@@ -3,6 +3,7 @@ use gpui_kit::component::{Icon, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
+use crate::config::LanguagePreference;
 use crate::model::{DeviceReading, PowerState};
 use crate::ui::Palette;
 
@@ -11,6 +12,7 @@ pub fn render_device_card(
     dev: &DeviceReading,
     display_name: String,
     low_threshold: u8,
+    lang: LanguagePreference,
     palette: &Palette,
 ) -> impl IntoElement {
     let accent = palette.status_color(dev.battery_percent, dev.power_state);
@@ -39,15 +41,14 @@ pub fn render_device_card(
 
     let mut status_parts = Vec::new();
     match dev.power_state {
-        PowerState::Charging => status_parts.push("充电中"),
-        PowerState::Full => status_parts.push("已充满"),
-        PowerState::Sleeping => status_parts.push("休眠/待机"),
-        PowerState::Offline => status_parts.push("已断开"),
+        PowerState::Charging | PowerState::Full | PowerState::Sleeping | PowerState::Offline => {
+            status_parts.push(dev.power_state.label(lang));
+        }
         PowerState::Discharging | PowerState::Unknown => {
             if dev.approximate {
-                status_parts.push("估算");
+                status_parts.push(lang.pick("估算", "Est."));
             } else {
-                status_parts.push(dev.kind.label_zh());
+                status_parts.push(dev.kind.label(lang));
             }
         }
     }
@@ -130,7 +131,7 @@ pub fn render_device_card(
                                                 .text_color(palette.text_secondary)
                                                 .text_size(px(10.0))
                                                 .font_weight(FontWeight::MEDIUM)
-                                                .child(dev.connection.badge_label()),
+                                                .child(dev.connection.badge_label_lang(lang)),
                                         ),
                                 )
                                 // Kind or state subtitle
@@ -155,7 +156,7 @@ pub fn render_device_card(
                                             .text_size(px(9.5))
                                             .font_weight(FontWeight::SEMIBOLD)
                                             .text_color(palette.rose)
-                                            .child("低电量"),
+                                            .child(lang.pick("低电量", "Low")),
                                     )
                                 }),
                         ),
@@ -200,6 +201,7 @@ pub fn render_compact_chip(
     idx: usize,
     dev: &DeviceReading,
     display_name: String,
+    lang: LanguagePreference,
     palette: &Palette,
 ) -> impl IntoElement {
     use gpui_kit::component::tooltip::Tooltip;
@@ -209,7 +211,7 @@ pub fn render_compact_chip(
     let is_charging = dev.power_state == PowerState::Charging;
     let tip: SharedString = format!(
         "{display_name} ({}) · {}",
-        dev.connection.badge_label(),
+        dev.connection.badge_label_lang(lang),
         dev.display_percent()
     )
     .into();

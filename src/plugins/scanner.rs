@@ -7,7 +7,7 @@ use std::time::Duration;
 use anyhow::{Result, bail};
 use chrono::Local;
 
-use crate::config::AppConfig;
+use crate::config::{AppConfig, LanguagePreference};
 use crate::model::{ConnectionType, DeviceKind};
 use crate::plugins::runner::{LoadedPlugin, matches_bt_rule, matches_hid_rule};
 use crate::plugins::schema::{
@@ -26,12 +26,19 @@ pub enum SupportStatus {
 }
 
 impl SupportStatus {
-    pub fn label(&self) -> String {
-        match self {
-            SupportStatus::BuiltIn(s) => format!("内置: {s}"),
-            SupportStatus::Plugin(id) => format!("插件: {id}"),
-            SupportStatus::Unmatched => "未适配".to_string(),
+    pub fn label_lang(&self, lang: LanguagePreference) -> String {
+        match (self, lang) {
+            (SupportStatus::BuiltIn(s), LanguagePreference::Zh) => format!("内置: {s}"),
+            (SupportStatus::BuiltIn(s), LanguagePreference::En) => format!("Built-in: {s}"),
+            (SupportStatus::Plugin(id), LanguagePreference::Zh) => format!("插件: {id}"),
+            (SupportStatus::Plugin(id), LanguagePreference::En) => format!("Plugin: {id}"),
+            (SupportStatus::Unmatched, LanguagePreference::Zh) => "未适配".to_string(),
+            (SupportStatus::Unmatched, LanguagePreference::En) => "Unsupported".to_string(),
         }
+    }
+
+    pub fn label(&self) -> String {
+        self.label_lang(LanguagePreference::Zh)
     }
 }
 
@@ -90,6 +97,7 @@ pub struct ProbeRequest {
     pub request_hex: String,
     pub xor_ff: bool,
     pub timeout_ms: u32,
+    pub language: LanguagePreference,
 }
 
 #[derive(Debug, Clone)]
@@ -286,14 +294,22 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
         message: msg,
     };
 
+    let lang = req.language;
     let col = &req.collection;
     let raw_pkt = match req.mode {
         HidProtocolMode::PassiveInput => {
             let Ok(h) = HidHandle::open_read_only(&col.path, true) else {
-                return fail(format!(
-                    "无法以只读打开 {:04X}:{:04X} (UP={:04X})",
-                    col.vid, col.pid, col.usage_page
-                ));
+                return fail(if lang.is_en() {
+                    format!(
+                        "Failed to open {:04X}:{:04X} (UP={:04X}) read-only",
+                        col.vid, col.pid, col.usage_page
+                    )
+                } else {
+                    format!(
+                        "无法以只读打开 {:04X}:{:04X} (UP={:04X})",
+                        col.vid, col.pid, col.usage_page
+                    )
+                });
             };
             let len = (col.input_len as usize).max(64);
             let mut got = None;
@@ -308,8 +324,22 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
         HidProtocolMode::FeatureReport => {
             let mut bytes = match parse_hex_bytes(&req.request_hex) {
                 Ok(b) if !b.is_empty() => b,
-                Ok(_) => return fail("Feature 模式请输入至少 1 个字节的 Report ID（如 11 06）".into()),
-                Err(e) => return fail(format!("指令格式错误: {e}")),
+                Ok(_) => {
+                    return fail(
+                        lang.pick(
+                            "Feature 模式请输入至少 1 个字节的 Report ID（如 11 06）",
+                            "Feature mode requires at least 1 Report ID byte (e.g. 11 06)",
+                        )
+                        .into(),
+                    );
+                }
+                Err(e) => {
+                    return fail(if lang.is_en() {
+                        format!("Invalid command hex: {e}")
+                    } else {
+                        format!("指令格式错误: {e}")
+                    });
+                }
             };
             let rid = bytes[0];
             let target_len = (col.feature_len as usize).max(bytes.len()).max(2);
@@ -320,22 +350,42 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
                 }
             }
             let Ok(h) = HidHandle::open(&col.path, false) else {
-                return fail("打开 HID 设备失败（可能被驱动独占）".into());
+                return fail(
+                    lang.pick(
+                        "打开 HID 设备失败（可能被驱动独占）",
+                        "Failed to open HID interface (may be exclusive to driver)",
+                    )
+                    .into(),
+                );
             };
             if let Err(e) = h.set_feature(&bytes) {
-                return fail(format!("HidD_SetFeature 失败: {e}"));
+                return fail(format!("HidD_SetFeature failed: {e}"));
             }
             thread::sleep(Duration::from_millis(55));
             match h.get_feature(rid, target_len) {
                 Ok(resp) => Some(resp),
-                Err(e) => return fail(format!("HidD_GetFeature 失败: {e}")),
+                Err(e) => return fail(format!("HidD_GetFeature failed: {e}")),
             }
         }
         HidProtocolMode::OutputInput | HidProtocolMode::OutputWithFeatureFallback => {
             let mut bytes = match parse_hex_bytes(&req.request_hex) {
                 Ok(b) if !b.is_empty() => b,
-                Ok(_) => return fail("请输入测试指令字节（如 55 65 01 或 00 01 01）".into()),
-                Err(e) => return fail(format!("指令格式错误: {e}")),
+                Ok(_) => {
+                    return fail(
+                        lang.pick(
+                            "请输入测试指令字节（如 55 65 01 或 00 01 01）",
+                            "Enter test command bytes (e.g. 55 65 01 or 00 01 01)",
+                        )
+                        .into(),
+                    );
+                }
+                Err(e) => {
+                    return fail(if lang.is_en() {
+                        format!("Invalid command hex: {e}")
+                    } else {
+                        format!("指令格式错误: {e}")
+                    });
+                }
             };
             let target_len = (col.output_len as usize).max(bytes.len()).max(2);
             bytes.resize(target_len, 0);
@@ -345,7 +395,13 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
                 }
             }
             let Ok(h) = HidHandle::open(&col.path, true) else {
-                return fail("打开 HID 设备失败（系统独占接口或无权限）".into());
+                return fail(
+                    lang.pick(
+                        "打开 HID 设备失败（系统独占接口或无权限）",
+                        "Failed to open HID interface (system exclusive or access denied)",
+                    )
+                    .into(),
+                );
             };
             let in_len = (col.input_len as usize).max(bytes.len()).max(64);
             match h.write_and_read_queued(&bytes, in_len, req.timeout_ms.clamp(150, 2000), 6, |pkt| {
@@ -359,7 +415,11 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
                     {
                         h.read_overlapped(in_len, 350).ok().flatten()
                     } else {
-                        return fail(format!("HID 读写失败: {e}"));
+                        return fail(if lang.is_en() {
+                            format!("HID I/O error: {e}")
+                        } else {
+                            format!("HID 读写失败: {e}")
+                        });
                     }
                 }
             }
@@ -367,7 +427,13 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
     };
 
     let Some(raw) = raw_pkt else {
-        return fail("设备无应答（可能处于休眠、未开机，或需要更换通道/指令）".into());
+        return fail(
+            lang.pick(
+                "设备无应答（可能处于休眠、未开机，或需要更换通道/指令）",
+                "No response (device sleeping/powered off, or try another channel/command)",
+            )
+            .into(),
+        );
     };
 
     let mut decoded = raw.clone();
@@ -383,7 +449,17 @@ pub fn run_hid_probe(req: &ProbeRequest) -> ProbeResult {
         decoded_hex: format_hex_bytes(&decoded),
         candidate_offsets: candidates,
         decoded_bytes: decoded,
-        message: format!("收到 {} 字节响应，点击下方高亮候选字节即可填入电量偏移", raw.len()),
+        message: if lang.is_en() {
+            format!(
+                "Received {} bytes; click a candidate offset below to fill Battery",
+                raw.len()
+            )
+        } else {
+            format!(
+                "收到 {} 字节响应，点击下方高亮候选字节即可填入电量偏移",
+                raw.len()
+            )
+        },
     }
 }
 

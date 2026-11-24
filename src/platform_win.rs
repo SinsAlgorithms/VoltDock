@@ -1,5 +1,7 @@
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
+use crate::config::LanguagePreference;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayAction {
     ToggleVisible,
@@ -16,6 +18,7 @@ pub struct TraySyncState {
     pub visible: bool,
     pub always_on_top: bool,
     pub compact_mode: bool,
+    pub language: LanguagePreference,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -707,10 +710,12 @@ mod win {
             return;
         };
 
-        let vis_label = if state.visible {
-            w!("隐藏小组件")
-        } else {
-            w!("显示小组件")
+        let en = state.language.is_en();
+        let vis_label = match (state.visible, en) {
+            (true, false) => w!("隐藏小组件"),
+            (true, true) => w!("Hide Widget"),
+            (false, false) => w!("显示小组件"),
+            (false, true) => w!("Show Widget"),
         };
         let pin_flags = if state.always_on_top {
             MF_STRING | MF_CHECKED
@@ -725,13 +730,42 @@ mod win {
 
         unsafe {
             let _ = AppendMenuW(menu, MF_STRING, CMD_TOGGLE_VISIBLE, vis_label);
-            let _ = AppendMenuW(menu, MF_STRING, CMD_REFRESH, w!("立即刷新电量"));
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                CMD_REFRESH,
+                if en { w!("Refresh Now") } else { w!("立即刷新电量") },
+            );
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(menu, pin_flags, CMD_TOGGLE_PIN, w!("始终置顶"));
-            let _ = AppendMenuW(menu, compact_flags, CMD_TOGGLE_COMPACT, w!("精简悬浮条"));
-            let _ = AppendMenuW(menu, MF_STRING, CMD_OPEN_SCANNER, w!("设备扫描 / 插件管理"));
+            let _ = AppendMenuW(
+                menu,
+                pin_flags,
+                CMD_TOGGLE_PIN,
+                if en { w!("Always on Top") } else { w!("始终置顶") },
+            );
+            let _ = AppendMenuW(
+                menu,
+                compact_flags,
+                CMD_TOGGLE_COMPACT,
+                if en { w!("Compact Bar") } else { w!("精简悬浮条") },
+            );
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                CMD_OPEN_SCANNER,
+                if en {
+                    w!("Device Scanner / Plugins")
+                } else {
+                    w!("设备扫描 / 插件管理")
+                },
+            );
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(menu, MF_STRING, CMD_QUIT, w!("退出程序"));
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                CMD_QUIT,
+                if en { w!("Quit") } else { w!("退出程序") },
+            );
 
             let mut pt = POINT::default();
             let _ = GetCursorPos(&mut pt);
@@ -780,8 +814,12 @@ mod win {
             initial_state: TraySyncState,
         ) -> (Self, smol::channel::Receiver<TrayAction>) {
             let (tx, rx) = smol::channel::unbounded::<TrayAction>();
+            let init_tip = initial_state.language.pick(
+                "设备电量小组件 - 点击显示/隐藏",
+                "VoltDock - Click to show/hide",
+            );
             let shared = Arc::new(Mutex::new(SharedTrayData {
-                tooltip: "设备电量小组件".to_string(),
+                tooltip: init_tip.to_string(),
                 state: initial_state,
                 balloon_title: String::new(),
                 balloon_body: String::new(),
@@ -833,7 +871,7 @@ mod win {
                         hIcon: hicon,
                         ..Default::default()
                     };
-                    copy_wide_fixed(&mut nid.szTip, "设备电量小组件 - 点击显示/隐藏");
+                    copy_wide_fixed(&mut nid.szTip, init_tip);
                     let _ = Shell_NotifyIconW(NIM_ADD, &nid);
 
                     let _ = hwnd_tx.send(hwnd.0 as isize);

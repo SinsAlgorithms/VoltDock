@@ -24,9 +24,9 @@ Monitor real-time battery level and charging status for **2.4GHz USB dongle / wi
 ### Full Card Mode (Dark / Light Theme)
 
 <p align="center">
-  <img src="docs/images/preview-card-dark.png" alt="Full card mode in dark theme" width="315" />
+  <img src="docs/images/en/preview-card-dark.png" alt="Full card mode in dark theme" width="315" />
   &nbsp;&nbsp;&nbsp;
-  <img src="docs/images/preview-card-light.png" alt="Full card mode in light theme" width="315" />
+  <img src="docs/images/en/preview-card-light.png" alt="Full card mode in light theme" width="315" />
 </p>
 <p align="center">
   <sub>Device icons, connection badges (<code>2.4G</code> / <code>BT</code> / <code>Wired</code>), charging indicators, tiered progress bars, and low-battery alerts</sub>
@@ -35,26 +35,26 @@ Monitor real-time battery level and charging status for **2.4GHz USB dongle / wi
 ### Compact Floating Bar (Adaptive Single-Row Pill / Multi-Row Grid)
 
 <p align="center">
-  <img src="docs/images/preview-compact-single.png" alt="Compact floating bar single-row horizontal layout" width="438" />
+  <img src="docs/images/en/preview-compact-single.png" alt="Compact floating bar single-row horizontal layout" width="462" />
 </p>
 <p align="center">
-  <img src="docs/images/preview-compact-wrap.png" alt="Compact floating bar multi-row dark grid" width="196" />
+  <img src="docs/images/en/preview-compact-wrap.png" alt="Compact floating bar multi-row dark grid" width="196" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/preview-compact-wrap-light.png" alt="Compact floating bar multi-row light grid" width="196" />
+  <img src="docs/images/en/preview-compact-wrap-light.png" alt="Compact floating bar multi-row light grid" width="196" />
 </p>
 <p align="center">
-  <sub>Expands horizontally on a single row and automatically switches to a symmetric grid card with a slim draggable top bar when wrapped, with hover tooltips for full device details</sub>
+  <sub>Expands horizontally on a single row and automatically switches to a symmetric grid card with a slim draggable top bar when wrapped, with built-in refresh/pin/expand buttons and hover tooltips</sub>
 </p>
 
 ### Settings Drawer & Device Scanner / Protocol Prober
 
 <p align="center">
-  <img src="docs/images/preview-settings.png" alt="Settings drawer" height="470" />
+  <img src="docs/images/en/preview-settings.png" alt="Settings drawer" height="470" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/preview-scanner.png" alt="Device scanner and protocol prober wizard" height="470" />
+  <img src="docs/images/en/preview-scanner.png" alt="Device scanner and protocol prober wizard" height="470" />
 </p>
 <p align="center">
-  <sub>Left: Refresh interval, compact columns per row, theme, recent sleeping cache & auto-start &nbsp;|&nbsp; Right: One-click HID & Bluetooth scan, live probe frames & JSON plugin generator</sub>
+  <sub>Left: Refresh interval, compact columns, theme, Chinese/English language switcher, sleeping cache & startup &nbsp;|&nbsp; Right: One-click HID & Bluetooth scan, live probe frames & JSON plugin generator</sub>
 </p>
 
 ---
@@ -63,7 +63,9 @@ Monitor real-time battery level and charging status for **2.4GHz USB dongle / wi
 
 - **Dual Floating Widget Modes**:
   - **Full Card Mode**: Displays device category icons, transport badges (`2.4G` / `Bluetooth` / `BLE` / `Wired`), charging/discharging state, exact battery percentage, low-battery highlights, and tiered progress bars.
-  - **Compact Floating Bar**: Shows a sleek `42px` horizontal pill when devices fit on a single line; when active devices exceed the configured per-row limit (`1–5`), automatically switches to a **symmetric grid card with a slim draggable `28px` mini-header** for crisp balance and effortless window dragging. Hover any chip to inspect the full device name and connection type.
+  - **Compact Floating Bar**: Shows a sleek `42px` horizontal pill when devices fit on a single line; when active devices exceed the configured per-row limit (`1–5`), automatically switches to a **symmetric grid card with a slim draggable `28px` mini-header** — both featuring quick Refresh, **Always-on-Top Pin**, and Expand controls. Hover any chip to inspect the full device name and connection type.
+- **Bilingual Interface (中文 / English)**:
+  - Instant **Chinese / English** UI switching directly from the Settings drawer (persists across restarts and applies to widget cards, compact bar, scanner wizard, tray menu, and low-battery notifications).
 - **Connected-Only Filtering & Edge-Aware Auto Expansion**:
   - Powered-off or disconnected 2.4GHz receivers are hidden automatically so the window shrinks strictly to active devices (optionally enable **"Show recently sleeping devices"** in settings to keep cached readings for 30 minutes).
   - Anchors to the nearest screen work-area edge — expanding right when docked left, left when docked right, up when docked at the bottom, and down when docked at the top — never overlapping the taskbar or screen edges.
@@ -111,8 +113,8 @@ Download the prebuilt Windows x64 binary (`VoltDock-v0.2.0-windows-x64.zip` or `
 # Test a single custom plugin JSON file
 .\voltdock.exe --test-plugin "%APPDATA%\BatteryDisplay\plugins\my_device.json"
 
-# Preview UI with built-in demo data (card-dark / card-light / compact-single / compact / compact-light / settings / scanner)
-.\voltdock.exe --demo --demo-view card-dark
+# Preview UI with built-in demo data (card-dark / card-light / compact-single / compact / compact-light / settings / scanner; optional --lang zh|en)
+.\voltdock.exe --demo --lang en --demo-view card-dark
 ```
 
 ---
@@ -195,7 +197,7 @@ Key schema fields:
 
 ```text
 VoltDock/
-├── docs/images/          # Showcase screenshots
+├── docs/images/          # Showcase screenshots (with en/ English screenshots)
 ├── plugins/examples/     # Custom device plugin templates (HID / BLE GATT)
 ├── src/
 │   ├── plugins/          # Plugin JSON schema parser, generic runner & HID/BT scanner

@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Local};
 
+use crate::config::LanguagePreference;
 use crate::model::{DeviceKind, DeviceReading, PollReport, PowerState};
 use crate::plugins::runner::{
     LoadedPlugin, PluginHidProvider, PluginLoadError, load_all_plugins,
@@ -414,14 +415,19 @@ pub fn filter_visible_devices<'a>(
 }
 
 /// Formats a concise tooltip summary for the tray icon.
-pub fn format_tray_tooltip(devices: &[DeviceReading]) -> String {
+pub fn format_tray_tooltip(devices: &[DeviceReading], lang: LanguagePreference) -> String {
     let visible: Vec<&DeviceReading> = devices
         .iter()
         .filter(|d| d.kind != DeviceKind::Phone && !d.power_state.is_inactive())
         .take(3)
         .collect();
     if visible.is_empty() {
-        return "设备电量小组件 - 点击显示/隐藏".to_string();
+        return lang
+            .pick(
+                "设备电量小组件 - 点击显示/隐藏",
+                "VoltDock - Click to show/hide",
+            )
+            .to_string();
     }
     let parts: Vec<String> = visible
         .iter()

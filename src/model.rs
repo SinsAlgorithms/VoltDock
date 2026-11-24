@@ -1,6 +1,8 @@
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
+use crate::config::LanguagePreference;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DeviceKind {
     Mouse,
@@ -13,16 +15,27 @@ pub enum DeviceKind {
 }
 
 impl DeviceKind {
-    pub fn label_zh(self) -> &'static str {
-        match self {
-            DeviceKind::Mouse => "无线鼠标",
-            DeviceKind::Headset => "无线耳机",
-            DeviceKind::Earbuds => "真无线耳机",
-            DeviceKind::Gamepad => "无线手柄",
-            DeviceKind::Keyboard => "无线键盘",
-            DeviceKind::Phone => "蓝牙手机",
-            DeviceKind::Other => "无线设备",
+    pub fn label(self, lang: LanguagePreference) -> &'static str {
+        match (self, lang) {
+            (DeviceKind::Mouse, LanguagePreference::Zh) => "无线鼠标",
+            (DeviceKind::Mouse, LanguagePreference::En) => "Wireless Mouse",
+            (DeviceKind::Headset, LanguagePreference::Zh) => "无线耳机",
+            (DeviceKind::Headset, LanguagePreference::En) => "Wireless Headset",
+            (DeviceKind::Earbuds, LanguagePreference::Zh) => "真无线耳机",
+            (DeviceKind::Earbuds, LanguagePreference::En) => "Wireless Earbuds",
+            (DeviceKind::Gamepad, LanguagePreference::Zh) => "无线手柄",
+            (DeviceKind::Gamepad, LanguagePreference::En) => "Wireless Gamepad",
+            (DeviceKind::Keyboard, LanguagePreference::Zh) => "无线键盘",
+            (DeviceKind::Keyboard, LanguagePreference::En) => "Wireless Keyboard",
+            (DeviceKind::Phone, LanguagePreference::Zh) => "蓝牙手机",
+            (DeviceKind::Phone, LanguagePreference::En) => "Bluetooth Phone",
+            (DeviceKind::Other, LanguagePreference::Zh) => "无线设备",
+            (DeviceKind::Other, LanguagePreference::En) => "Wireless Device",
         }
+    }
+
+    pub fn label_zh(self) -> &'static str {
+        self.label(LanguagePreference::Zh)
     }
 
     pub fn icon_path(self) -> &'static str {
@@ -59,13 +72,19 @@ pub enum ConnectionType {
 }
 
 impl ConnectionType {
-    pub fn badge_label(self) -> &'static str {
-        match self {
-            ConnectionType::Dongle24G => "2.4G",
-            ConnectionType::Bluetooth => "蓝牙",
-            ConnectionType::BluetoothLE => "BLE",
-            ConnectionType::Wired => "有线",
+    pub fn badge_label_lang(self, lang: LanguagePreference) -> &'static str {
+        match (self, lang) {
+            (ConnectionType::Dongle24G, _) => "2.4G",
+            (ConnectionType::Bluetooth, LanguagePreference::Zh) => "蓝牙",
+            (ConnectionType::Bluetooth, LanguagePreference::En) => "BT",
+            (ConnectionType::BluetoothLE, _) => "BLE",
+            (ConnectionType::Wired, LanguagePreference::Zh) => "有线",
+            (ConnectionType::Wired, LanguagePreference::En) => "Wired",
         }
+    }
+
+    pub fn badge_label(self) -> &'static str {
+        self.badge_label_lang(LanguagePreference::Zh)
     }
 
     pub fn icon_path(self) -> &'static str {
@@ -92,15 +111,25 @@ pub enum PowerState {
 }
 
 impl PowerState {
-    pub fn label_zh(self) -> &'static str {
-        match self {
-            PowerState::Discharging => "使用中",
-            PowerState::Charging => "充电中",
-            PowerState::Full => "已充满",
-            PowerState::Sleeping => "休眠/待机",
-            PowerState::Offline => "已断开",
-            PowerState::Unknown => "未知状态",
+    pub fn label(self, lang: LanguagePreference) -> &'static str {
+        match (self, lang) {
+            (PowerState::Discharging, LanguagePreference::Zh) => "使用中",
+            (PowerState::Discharging, LanguagePreference::En) => "Active",
+            (PowerState::Charging, LanguagePreference::Zh) => "充电中",
+            (PowerState::Charging, LanguagePreference::En) => "Charging",
+            (PowerState::Full, LanguagePreference::Zh) => "已充满",
+            (PowerState::Full, LanguagePreference::En) => "Full",
+            (PowerState::Sleeping, LanguagePreference::Zh) => "休眠/待机",
+            (PowerState::Sleeping, LanguagePreference::En) => "Sleeping",
+            (PowerState::Offline, LanguagePreference::Zh) => "已断开",
+            (PowerState::Offline, LanguagePreference::En) => "Offline",
+            (PowerState::Unknown, LanguagePreference::Zh) => "未知状态",
+            (PowerState::Unknown, LanguagePreference::En) => "Unknown",
         }
+    }
+
+    pub fn label_zh(self) -> &'static str {
+        self.label(LanguagePreference::Zh)
     }
 
     pub fn is_charging_or_full(self) -> bool {

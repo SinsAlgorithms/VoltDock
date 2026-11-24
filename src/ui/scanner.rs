@@ -34,24 +34,25 @@ pub fn render_scanner_panel(
     palette: &Palette,
     cx: &mut Context<BatteryWidget>,
 ) -> impl IntoElement {
+    let lang = widget.language();
     let tabs: &[(ScannerTab, &str)] = &[
-        (ScannerTab::Hid, "USB/HID 扫描"),
-        (ScannerTab::Bluetooth, "蓝牙扫描"),
-        (ScannerTab::Plugins, "已加载插件"),
+        (ScannerTab::Hid, lang.pick("USB/HID 扫描", "USB/HID")),
+        (ScannerTab::Bluetooth, lang.pick("蓝牙扫描", "Bluetooth")),
+        (ScannerTab::Plugins, lang.pick("已加载插件", "Plugins")),
     ];
 
     let hid_modes: &[(HidProtocolMode, &str)] = &[
         (HidProtocolMode::FeatureReport, "Feature"),
         (HidProtocolMode::OutputInput, "Out+In"),
-        (HidProtocolMode::PassiveInput, "被动读取"),
+        (HidProtocolMode::PassiveInput, lang.pick("被动读取", "Passive")),
     ];
 
     let kind_choices: &[(DeviceKind, &str)] = &[
-        (DeviceKind::Mouse, "鼠标"),
-        (DeviceKind::Headset, "耳机"),
-        (DeviceKind::Gamepad, "手柄"),
-        (DeviceKind::Keyboard, "键盘"),
-        (DeviceKind::Other, "其他"),
+        (DeviceKind::Mouse, lang.pick("鼠标", "Mouse")),
+        (DeviceKind::Headset, lang.pick("耳机", "Headset")),
+        (DeviceKind::Gamepad, lang.pick("手柄", "Pad")),
+        (DeviceKind::Keyboard, lang.pick("键盘", "Kbd")),
+        (DeviceKind::Other, lang.pick("其他", "Other")),
     ];
 
     let plugin_count = widget.loaded_plugins.len();
@@ -121,7 +122,7 @@ pub fn render_scanner_panel(
                                             palette.text_secondary
                                         }),
                                 )
-                                .tooltip("重新扫描硬件与插件")
+                                .tooltip(lang.pick("重新扫描硬件与插件", "Rescan hardware & plugins"))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.trigger_device_scan(cx);
                                     this.reload_all_plugins_now(cx);
@@ -137,7 +138,7 @@ pub fn render_scanner_panel(
                                         .size(px(12.0))
                                         .text_color(palette.text_secondary),
                                 )
-                                .tooltip("打开插件配置目录")
+                                .tooltip(lang.pick("打开插件配置目录", "Open plugins folder"))
                                 .on_click(|_, _, _| {
                                     open_folder_in_explorer(&AppConfig::plugins_dir());
                                 }),
@@ -199,15 +200,18 @@ pub fn render_scanner_panel(
                         div()
                             .text_size(px(10.5))
                             .text_color(palette.text_muted)
-                            .child(format!(
-                                "扫描时间 {} · {} 组 HID 设备",
-                                if widget.scan_snapshot.scanned_at.is_empty() {
+                            .child({
+                                let ts = if widget.scan_snapshot.scanned_at.is_empty() {
                                     "--:--"
                                 } else {
                                     widget.scan_snapshot.scanned_at.as_str()
-                                },
-                                rows.len()
-                            )),
+                                };
+                                if lang.is_en() {
+                                    format!("Scanned {ts} · {} HID groups", rows.len())
+                                } else {
+                                    format!("扫描时间 {ts} · {} 组 HID 设备", rows.len())
+                                }
+                            }),
                     )
                     .child(
                         div()
@@ -231,9 +235,9 @@ pub fn render_scanner_panel(
                                 this.toggle_vendor_only_filter(cx);
                             }))
                             .child(if vendor_only {
-                                "仅厂商通道 (0xFFxx)"
+                                lang.pick("仅厂商通道 (0xFFxx)", "Vendor only (0xFFxx)")
                             } else {
-                                "显示全部 HID"
+                                lang.pick("显示全部 HID", "Show all HID")
                             }),
                     ),
             )
@@ -257,9 +261,15 @@ pub fn render_scanner_panel(
                                 .text_xs()
                                 .text_color(palette.text_muted)
                                 .child(if widget.scanning_devices {
-                                    "正在扫描 USB HID 驱动属性..."
+                                    lang.pick(
+                                        "正在扫描 USB HID 驱动属性...",
+                                        "Scanning USB HID interfaces...",
+                                    )
                                 } else {
-                                    "暂无匹配 HID 接口，可点击“显示全部 HID”或刷新"
+                                    lang.pick(
+                                        "暂无匹配 HID 接口，可点击“显示全部 HID”或刷新",
+                                        "No matching HID interfaces. Try 'Show all HID' or refresh.",
+                                    )
                                 }),
                         )
                     })
@@ -300,7 +310,7 @@ pub fn render_scanner_panel(
                                             .bg(badge_bg)
                                             .text_size(px(9.5))
                                             .text_color(badge_fg)
-                                            .child(grp.support.label()),
+                                            .child(grp.support.label_lang(lang)),
                                     ),
                             )
                             .children(cols.into_iter().enumerate().map(|(ci, col)| {
@@ -358,7 +368,7 @@ pub fn render_scanner_panel(
                                                 .bg(palette.cyan.opacity(0.16))
                                                 .text_size(px(9.0))
                                                 .text_color(palette.cyan)
-                                                .child("厂商通道"),
+                                                .child(lang.pick("厂商通道", "Vendor")),
                                         )
                                     })
                             }))
@@ -385,10 +395,17 @@ pub fn render_scanner_panel(
                                         .text_size(px(11.0))
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(palette.text_primary)
-                                        .child(format!(
-                                            "协议探测 [{:04X}:{:04X} · UP={:04X}]",
-                                            sel.vid, sel.pid, sel.usage_page
-                                        )),
+                                        .child(if lang.is_en() {
+                                            format!(
+                                                "Probe [{:04X}:{:04X} · UP={:04X}]",
+                                                sel.vid, sel.pid, sel.usage_page
+                                            )
+                                        } else {
+                                            format!(
+                                                "协议探测 [{:04X}:{:04X} · UP={:04X}]",
+                                                sel.vid, sel.pid, sel.usage_page
+                                            )
+                                        }),
                                 )
                                 .child(h_flex().gap_1().children(hid_modes.iter().enumerate().map(|(i, &(m, lbl))| {
                                     let active = widget.probe_mode == m;
@@ -460,7 +477,11 @@ pub fn render_scanner_panel(
                                                 .size(px(11.0))
                                                 .text_color(palette.accent),
                                         )
-                                        .label(if widget.probing_hid { "探测中" } else { "试发读取" })
+                                        .label(if widget.probing_hid {
+                                            lang.pick("探测中", "Probing")
+                                        } else {
+                                            lang.pick("试发读取", "Probe")
+                                        })
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.trigger_hid_probe(cx);
                                         })),
@@ -491,10 +512,17 @@ pub fn render_scanner_panel(
                                                 .text_size(px(9.5))
                                                 .text_color(palette.text_secondary)
                                                 .child(if res.raw_hex != res.decoded_hex {
-                                                    format!(
-                                                        "解码: {}\n原始: {}",
-                                                        res.decoded_hex, res.raw_hex
-                                                    )
+                                                    if lang.is_en() {
+                                                        format!(
+                                                            "Decoded: {}\nRaw: {}",
+                                                            res.decoded_hex, res.raw_hex
+                                                        )
+                                                    } else {
+                                                        format!(
+                                                            "解码: {}\n原始: {}",
+                                                            res.decoded_hex, res.raw_hex
+                                                        )
+                                                    }
                                                 } else {
                                                     res.decoded_hex.clone()
                                                 }),
@@ -571,7 +599,7 @@ pub fn render_scanner_panel(
                                     div()
                                         .text_size(px(10.0))
                                         .text_color(palette.text_secondary)
-                                        .child("电量字节:"),
+                                        .child(lang.pick("电量字节:", "Battery:")),
                                 )
                                 .child(
                                     div()
@@ -582,7 +610,7 @@ pub fn render_scanner_panel(
                                     div()
                                         .text_size(px(10.0))
                                         .text_color(palette.text_secondary)
-                                        .child("充电字节:"),
+                                        .child(lang.pick("充电字节:", "Charge:")),
                                 )
                                 .child(
                                     div()
@@ -593,7 +621,7 @@ pub fn render_scanner_panel(
                                     Button::new("btn-save-hid-plugin")
                                         .primary()
                                         .xsmall()
-                                        .label("保存插件并生效")
+                                        .label(lang.pick("保存插件并生效", "Save Plugin"))
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.save_scanned_hid_plugin(false, cx);
                                         })),
@@ -625,7 +653,10 @@ pub fn render_scanner_panel(
                                 .text_center()
                                 .text_xs()
                                 .text_color(palette.text_muted)
-                                .child("未扫描到已配对蓝牙设备，点击右上角刷新重试"),
+                                .child(lang.pick(
+                                    "未扫描到已配对蓝牙设备，点击右上角刷新重试",
+                                    "No paired Bluetooth devices found. Click refresh to rescan.",
+                                )),
                         )
                     })
                     .children(widget.scan_snapshot.bt_devices.iter().enumerate().map(|(i, bt)| {
@@ -674,27 +705,43 @@ pub fn render_scanner_panel(
                                                     } else {
                                                         palette.text_muted
                                                     })
-                                                    .child(if bt.connected { "已连接" } else { "未连接" }),
+                                                    .child(if bt.connected {
+                                                        lang.pick("已连接", "Connected")
+                                                    } else {
+                                                        lang.pick("未连接", "Offline")
+                                                    }),
                                             ),
                                     )
                                     .child(
                                         div()
                                             .text_size(px(10.0))
                                             .text_color(palette.text_secondary)
-                                            .child(format!(
-                                                "MAC:{} · {} · 电量:{}",
-                                                bt.mac,
-                                                if bt.is_le && bt.has_classic {
+                                            .child({
+                                                let mode = if bt.is_le && bt.has_classic {
                                                     "BLE+Classic"
                                                 } else if bt.is_le {
                                                     "BLE"
                                                 } else {
                                                     "Classic"
-                                                },
-                                                bt.battery_percent
+                                                };
+                                                let bat = bt
+                                                    .battery_percent
                                                     .map(|p| format!("{p}%"))
-                                                    .unwrap_or_else(|| "无/未读到".into())
-                                            )),
+                                                    .unwrap_or_else(|| {
+                                                        lang.pick("无/未读到", "N/A").into()
+                                                    });
+                                                if lang.is_en() {
+                                                    format!(
+                                                        "MAC:{} · {mode} · Bat:{bat}",
+                                                        bt.mac
+                                                    )
+                                                } else {
+                                                    format!(
+                                                        "MAC:{} · {mode} · 电量:{bat}",
+                                                        bt.mac
+                                                    )
+                                                }
+                                            }),
                                     ),
                             )
                             .child(
@@ -709,13 +756,13 @@ pub fn render_scanner_panel(
                                             .bg(badge_bg)
                                             .text_size(px(9.5))
                                             .text_color(badge_fg)
-                                            .child(bt.support.label()),
+                                            .child(bt.support.label_lang(lang)),
                                     )
                                     .child(
                                         Button::new(("bt-add-plugin", i))
                                             .secondary()
                                             .xsmall()
-                                            .label("生成插件")
+                                            .label(lang.pick("生成插件", "Create Plugin"))
                                             .on_click(cx.listener(move |this, _, _, cx| {
                                                 this.create_bt_plugin_for_device(bt_clone.clone(), cx);
                                             })),
@@ -750,7 +797,19 @@ pub fn render_scanner_panel(
                                 .bg(palette.rose.opacity(0.15))
                                 .text_size(px(10.0))
                                 .text_color(palette.rose)
-                                .child(format!("解析失败 {:?}: {}", err.path.file_name().unwrap_or_default(), err.error))
+                                .child(if lang.is_en() {
+                                    format!(
+                                        "Parse error {:?}: {}",
+                                        err.path.file_name().unwrap_or_default(),
+                                        err.error
+                                    )
+                                } else {
+                                    format!(
+                                        "解析失败 {:?}: {}",
+                                        err.path.file_name().unwrap_or_default(),
+                                        err.error
+                                    )
+                                })
                         }))
                     })
                     .when(widget.loaded_plugins.is_empty() && widget.plugin_errors.is_empty(), |box_el| {
@@ -763,13 +822,19 @@ pub fn render_scanner_panel(
                                     div()
                                         .text_xs()
                                         .text_color(palette.text_secondary)
-                                        .child("当前未启用任何 .json 自定义设备插件"),
+                                        .child(lang.pick(
+                                            "当前未启用任何 .json 自定义设备插件",
+                                            "No custom .json plugins active",
+                                        )),
                                 )
                                 .child(
                                     div()
                                         .text_size(px(10.0))
                                         .text_color(palette.text_muted)
-                                        .child("可在“USB/HID 扫描”快速保存，或将 plugins\\examples 模板改为 .json"),
+                                        .child(lang.pick(
+                                            "可在“USB/HID 扫描”快速保存，或将 plugins\\examples 模板改为 .json",
+                                            "Save one from the USB/HID tab or rename a template in plugins\\examples",
+                                        )),
                                 ),
                         )
                     })
@@ -857,7 +922,7 @@ pub fn render_scanner_panel(
                                                 .size(px(12.0))
                                                 .text_color(palette.rose),
                                         )
-                                        .tooltip("删除此插件配置")
+                                        .tooltip(lang.pick("删除此插件配置", "Delete plugin"))
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.delete_loaded_plugin(path_for_del.clone(), cx);
                                         })),

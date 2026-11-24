@@ -15,6 +15,26 @@ pub enum ThemePreference {
     Light,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum LanguagePreference {
+    #[default]
+    Zh,
+    En,
+}
+
+impl LanguagePreference {
+    pub const fn is_en(self) -> bool {
+        matches!(self, Self::En)
+    }
+
+    pub const fn pick<T: Copy>(self, zh: T, en: T) -> T {
+        match self {
+            Self::Zh => zh,
+            Self::En => en,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppConfig {
@@ -25,6 +45,7 @@ pub struct AppConfig {
     pub compact_mode: bool,
     pub compact_max_per_row: usize,
     pub theme_mode: ThemePreference,
+    pub language: LanguagePreference,
     pub poll_interval_secs: u64,
     pub show_sleeping: bool,
     pub show_phones: bool,
@@ -46,6 +67,7 @@ impl Default for AppConfig {
             compact_mode: false,
             compact_max_per_row: 3,
             theme_mode: ThemePreference::Dark,
+            language: LanguagePreference::Zh,
             poll_interval_secs: 30,
             show_sleeping: false,
             show_phones: false,
@@ -251,6 +273,7 @@ mod tests {
             always_on_top: false,
             compact_mode: true,
             compact_max_per_row: 4,
+            language: LanguagePreference::En,
             show_phones: true,
             ..Default::default()
         };
@@ -267,6 +290,7 @@ mod tests {
         assert!(!loaded.always_on_top);
         assert!(loaded.compact_mode);
         assert_eq!(loaded.compact_max_per_row, 4);
+        assert_eq!(loaded.language, LanguagePreference::En);
         assert!(loaded.show_phones);
         assert_eq!(loaded.resolve_name("dev-1", "fallback"), "我的A7");
         assert_eq!(loaded.resolve_name("dev-2", "fallback"), "fallback");
@@ -281,6 +305,7 @@ mod tests {
         assert_eq!(migrated.config_version, 2);
         assert!(!migrated.show_sleeping);
         assert_eq!(migrated.compact_max_per_row, 3);
+        assert_eq!(migrated.language, LanguagePreference::Zh);
         assert_eq!(migrated.window_x, Some(3334));
     }
 }

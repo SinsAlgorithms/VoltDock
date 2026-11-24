@@ -10,7 +10,7 @@ use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, Theme, ThemeMode
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
-use crate::config::{AppConfig, ThemePreference, sync_autostart_registry};
+use crate::config::{AppConfig, LanguagePreference, ThemePreference, sync_autostart_registry};
 use crate::manager::{
     PollCommand, PollStateTracker, filter_visible_devices, format_tray_tooltip,
 };
@@ -45,6 +45,7 @@ pub struct DemoOptions {
     pub compact_max_per_row: usize,
     pub open_settings: bool,
     pub open_scanner: bool,
+    pub lang: LanguagePreference,
 }
 
 pub struct BatteryWidget {
@@ -105,6 +106,8 @@ impl BatteryWidget {
             } else {
                 ThemePreference::Dark
             };
+            config.language = demo.lang;
+            config.always_on_top = true;
             config.compact_mode = demo.compact;
             if demo.compact_max_per_row > 0 {
                 config.compact_max_per_row = demo.compact_max_per_row.clamp(1, 6);
@@ -116,20 +119,23 @@ impl BatteryWidget {
         };
         Theme::change(target_mode, Some(window), cx);
 
-        let input_plugin_name =
-            cx.new(|cx| InputState::new(window, cx).placeholder("设备名称 (例如 ATK F1)"));
+        let lang = config.language;
+        let input_plugin_name = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(lang.pick("设备名称 (例如 ATK F1)", "Device name (e.g. ATK F1)"))
+        });
         let input_probe_hex = cx.new(|cx| {
             InputState::new(window, cx)
                 .default_value("11 06")
-                .placeholder("测试指令 hex，如 11 06 或 55 65 01")
+                .placeholder(lang.pick("测试指令 hex，如 11 06 或 55 65 01", "Test hex e.g. 11 06 or 55 65 01"))
         });
         let input_level_offset = cx.new(|cx| {
             InputState::new(window, cx)
                 .default_value("11")
-                .placeholder("偏移")
+                .placeholder(lang.pick("偏移", "Offset"))
         });
-        let input_charging_offset =
-            cx.new(|cx| InputState::new(window, cx).placeholder("可选"));
+        let input_charging_offset = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(lang.pick("可选", "Opt"))
+        });
 
         let (loaded_plugins, plugin_errors) = load_all_plugins();
         let window_handle = window.window_handle();
@@ -214,7 +220,7 @@ impl BatteryWidget {
                         mac_address: None,
                         last_seen: now,
                         approximate: false,
-                        detail: Some("型号 0x0011".into()),
+                        detail: Some(lang.pick("型号 0x0011", "Model 0x0011").into()),
                     },
                     DeviceReading {
                         id: "mchose:v9_pro".into(),
@@ -322,7 +328,12 @@ impl BatteryWidget {
                     decoded_hex: "11 06 53 52 11 00 05 00 07 04 09 4A 00".into(),
                     candidate_offsets: extract_candidate_battery_offsets(&sample_decoded),
                     decoded_bytes: sample_decoded,
-                    message: "收到 21 字节响应，点击下方高亮候选字节即可填入电量偏移".into(),
+                    message: lang
+                        .pick(
+                            "收到 21 字节响应，点击下方高亮候选字节即可填入电量偏移",
+                            "Received 21 bytes; click a candidate offset below to fill Battery",
+                        )
+                        .into(),
                 });
             }
         }
@@ -396,7 +407,7 @@ impl BatteryWidget {
     }
 
     fn effective_compact_per_row(&self, max_work_w_logical: f32) -> usize {
-        let avail_for_chips = (max_work_w_logical - 104.0).max(80.0);
+        let avail_for_chips = (max_work_w_logical - 128.0).max(80.0);
         let max_fit = (((avail_for_chips + 6.0) / 86.0).floor() as usize).max(1);
         self.config.compact_max_per_row.clamp(1, max_fit.min(6))
     }
@@ -425,7 +436,7 @@ impl BatteryWidget {
         };
 
         let settings_h = if self.show_settings {
-            if self.show_diagnostics { 386.0 } else { 262.0 }
+            if self.show_diagnostics { 414.0 } else { 290.0 }
         } else {
             0.0
         };
@@ -539,13 +550,14 @@ impl BatteryWidget {
 
     fn sync_tray(&self) {
         if let Some(tray) = &self.tray {
-            let tip = format_tray_tooltip(&self.report.devices);
+            let tip = format_tray_tooltip(&self.report.devices, self.config.language);
             tray.update_tooltip_and_state(
                 tip,
                 TraySyncState {
                     visible: self.visible,
                     always_on_top: self.config.always_on_top,
                     compact_mode: self.config.compact_mode,
+                    language: self.config.language,
                 },
             );
         }
@@ -563,12 +575,17 @@ impl BatteryWidget {
         if !alerts.is_empty()
             && let Some(tray) = &self.tray
         {
+            let lang = self.config.language;
             for d in alerts {
                 let name = self.config.resolve_name(&d.id, &d.name);
                 let pct = d.battery_percent.unwrap_or(0);
                 tray.show_balloon(
-                    "设备低电量提醒".to_string(),
-                    format!("{name} 电量仅剩 {pct}%，请及时充电"),
+                    lang.pick("设备低电量提醒", "Low Battery Alert").to_string(),
+                    if lang.is_en() {
+                        format!("{name} is down to {pct}%. Please recharge soon.")
+                    } else {
+                        format!("{name} 电量仅剩 {pct}%，请及时充电")
+                    },
                 );
             }
         }
@@ -746,10 +763,15 @@ impl BatteryWidget {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let lang = self.config.language;
         let suggested_name = if col.product.trim().is_empty()
             || col.product.eq_ignore_ascii_case("USB Input Device")
         {
-            format!("自定义设备 {:04X}:{:04X}", col.vid, col.pid)
+            if lang.is_en() {
+                format!("Custom Device {:04X}:{:04X}", col.vid, col.pid)
+            } else {
+                format!("自定义设备 {:04X}:{:04X}", col.vid, col.pid)
+            }
         } else {
             col.product.trim().to_string()
         };
@@ -789,6 +811,7 @@ impl BatteryWidget {
             request_hex,
             xor_ff: self.probe_xor_ff,
             timeout_ms: 800,
+            language: self.config.language,
         };
         self.probing_hid = true;
         self.scanner_status = None;
@@ -829,8 +852,16 @@ impl BatteryWidget {
     }
 
     pub fn save_scanned_hid_plugin(&mut self, open_folder: bool, cx: &mut Context<Self>) {
+        let lang = self.config.language;
         let Some(col) = self.selected_hid_col.clone() else {
-            self.scanner_status = Some((true, "请先在上方列表中选择一个 HID 接口".into()));
+            self.scanner_status = Some((
+                true,
+                lang.pick(
+                    "请先在上方列表中选择一个 HID 接口",
+                    "Please select a HID interface above first",
+                )
+                .into(),
+            ));
             cx.notify();
             return;
         };
@@ -840,7 +871,14 @@ impl BatteryWidget {
         let chg_str = self.input_charging_offset.read(cx).value().to_string();
 
         let Ok(level_offset) = lvl_str.trim().parse::<usize>() else {
-            self.scanner_status = Some((true, "电量字节偏移必须为非负整数（如 11 或 19）".into()));
+            self.scanner_status = Some((
+                true,
+                lang.pick(
+                    "电量字节偏移必须为非负整数（如 11 或 19）",
+                    "Battery offset must be a non-negative integer (e.g. 11)",
+                )
+                .into(),
+            ));
             cx.notify();
             return;
         };
@@ -850,7 +888,14 @@ impl BatteryWidget {
             match chg_str.trim().parse::<usize>() {
                 Ok(v) => Some(v),
                 Err(_) => {
-                    self.scanner_status = Some((true, "充电字节偏移必须为非负整数或留空".into()));
+                    self.scanner_status = Some((
+                        true,
+                        lang.pick(
+                            "充电字节偏移必须为非负整数或留空",
+                            "Charge offset must be a non-negative integer or blank",
+                        )
+                        .into(),
+                    ));
                     cx.notify();
                     return;
                 }
@@ -884,20 +929,34 @@ impl BatteryWidget {
                     .file_name()
                     .and_then(|s| s.to_str())
                     .unwrap_or("plugin.json");
-                self.scanner_status =
-                    Some((false, format!("已保存插件 {fname} 并触发设备重扫")));
+                self.scanner_status = Some((
+                    false,
+                    if lang.is_en() {
+                        format!("Saved {fname} and triggered device rescan")
+                    } else {
+                        format!("已保存插件 {fname} 并触发设备重扫")
+                    },
+                ));
                 if open_folder {
                     open_folder_in_explorer(&AppConfig::plugins_dir());
                 }
             }
             Err(e) => {
-                self.scanner_status = Some((true, format!("保存插件失败: {e}")));
+                self.scanner_status = Some((
+                    true,
+                    if lang.is_en() {
+                        format!("Failed to save plugin: {e}")
+                    } else {
+                        format!("保存插件失败: {e}")
+                    },
+                ));
             }
         }
         cx.notify();
     }
 
     pub fn create_bt_plugin_for_device(&mut self, bt: ScannedBtDevice, cx: &mut Context<Self>) {
+        let lang = self.config.language;
         let spec = build_bt_plugin_from_scan(&bt, bt.kind);
         match save_plugin_to_user_dir(&spec) {
             Ok(path) => {
@@ -909,25 +968,47 @@ impl BatteryWidget {
                     .unwrap_or("bt_plugin.json");
                 self.scanner_status = Some((
                     false,
-                    format!("已生成蓝牙插件 {fname}，可在插件目录自定义 UUID/设备类型"),
+                    if lang.is_en() {
+                        format!("Created {fname}; edit UUID/kind in plugins dir if needed")
+                    } else {
+                        format!("已生成蓝牙插件 {fname}，可在插件目录自定义 UUID/设备类型")
+                    },
                 ));
             }
             Err(e) => {
-                self.scanner_status = Some((true, format!("保存蓝牙插件失败: {e}")));
+                self.scanner_status = Some((
+                    true,
+                    if lang.is_en() {
+                        format!("Failed to save BT plugin: {e}")
+                    } else {
+                        format!("保存蓝牙插件失败: {e}")
+                    },
+                ));
             }
         }
         cx.notify();
     }
 
     pub fn delete_loaded_plugin(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        let lang = self.config.language;
         match delete_user_plugin(&path) {
             Ok(()) => {
                 self.reload_all_plugins_now(cx);
                 let _ = self.poll_cmd_tx.send(PollCommand::ReloadPlugins);
-                self.scanner_status = Some((false, "已删除插件配置并重载".into()));
+                self.scanner_status = Some((
+                    false,
+                    lang.pick("已删除插件配置并重载", "Plugin deleted and reloaded").into(),
+                ));
             }
             Err(e) => {
-                self.scanner_status = Some((true, format!("删除插件失败: {e}")));
+                self.scanner_status = Some((
+                    true,
+                    if lang.is_en() {
+                        format!("Failed to delete plugin: {e}")
+                    } else {
+                        format!("删除插件失败: {e}")
+                    },
+                ));
             }
         }
         cx.notify();
@@ -1019,17 +1100,35 @@ impl BatteryWidget {
         cx.notify();
     }
 
+    pub fn language(&self) -> LanguagePreference {
+        self.config.language
+    }
+
+    pub fn set_language(&mut self, lang: LanguagePreference, cx: &mut Context<Self>) {
+        self.config.language = lang;
+        self.save_config_if_persistent();
+        self.sync_tray();
+        cx.notify();
+    }
+
     fn format_updated_ago(&self) -> String {
+        let lang = self.config.language;
         if self.polling && self.report.devices.is_empty() {
-            return "扫描中...".to_string();
+            return lang.pick("扫描中...", "Scanning...").to_string();
         }
         let secs = (Local::now() - self.report.polled_at).num_seconds().max(0);
         if self.polling {
-            "更新中".to_string()
+            lang.pick("更新中", "Updating").to_string()
         } else if secs < 10 {
-            "刚刚".to_string()
+            lang.pick("刚刚", "Just now").to_string()
         } else if secs < 60 {
-            format!("{secs}s前")
+            if lang.is_en() {
+                format!("{secs}s ago")
+            } else {
+                format!("{secs}s前")
+            }
+        } else if lang.is_en() {
+            format!("{}m ago", secs / 60)
         } else {
             format!("{}m前", secs / 60)
         }
@@ -1041,6 +1140,7 @@ impl BatteryWidget {
         icon_px: f32,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let lang = self.config.language;
         h_flex()
             .items_center()
             .gap_0p5()
@@ -1058,9 +1158,36 @@ impl BatteryWidget {
                                 palette.text_secondary
                             }),
                     )
-                    .tooltip("立即刷新")
+                    .tooltip(lang.pick("立即刷新", "Refresh Now"))
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.trigger_refresh(cx);
+                    })),
+            )
+            .child(
+                Button::new("compact-pin")
+                    .ghost()
+                    .xsmall()
+                    .icon(
+                        Icon::default()
+                            .path(if self.config.always_on_top {
+                                "icons/pin.svg"
+                            } else {
+                                "icons/pin-off.svg"
+                            })
+                            .size(px(icon_px))
+                            .text_color(if self.config.always_on_top {
+                                palette.accent
+                            } else {
+                                palette.text_muted
+                            }),
+                    )
+                    .tooltip(if self.config.always_on_top {
+                        lang.pick("取消置顶", "Unpin from top")
+                    } else {
+                        lang.pick("始终置顶", "Always on top")
+                    })
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.toggle_always_on_top(window, cx);
                     })),
             )
             .child(
@@ -1073,7 +1200,7 @@ impl BatteryWidget {
                             .size(px(icon_px))
                             .text_color(palette.text_primary),
                     )
-                    .tooltip("展开完整卡片")
+                    .tooltip(lang.pick("展开完整卡片", "Expand Card"))
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.toggle_compact_mode(window, cx);
                     })),
@@ -1086,6 +1213,7 @@ impl BatteryWidget {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let lang = self.config.language;
         let visible = self.visible_devices();
         let scale = window.scale_factor().max(1.0);
         let max_work_w = self
@@ -1143,15 +1271,15 @@ impl BatteryWidget {
                                     .text_xs()
                                     .text_color(palette.text_secondary)
                                     .child(if self.polling {
-                                        "正在检测设备..."
+                                        lang.pick("正在检测设备...", "Scanning...")
                                     } else {
-                                        "无已连接设备"
+                                        lang.pick("无已连接设备", "No connected devices")
                                     }),
                             )
                         })
                         .children(visible.iter().enumerate().map(|(ci, dev)| {
                             let name = self.config.resolve_name(&dev.id, &dev.name).to_string();
-                            render_compact_chip(ci, dev, name, palette)
+                            render_compact_chip(ci, dev, name, lang, palette)
                         })),
                 )
                 .child(
@@ -1181,6 +1309,11 @@ impl BatteryWidget {
             palette.emerald
         } else {
             palette.slate
+        };
+        let count_text = if lang.is_en() {
+            format!("{count} devs")
+        } else {
+            format!("{count} 设备")
         };
 
         v_flex()
@@ -1232,7 +1365,7 @@ impl BatteryWidget {
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(palette.text_secondary)
                                         .truncate()
-                                        .child(format!("{count} 设备")),
+                                        .child(count_text),
                                 )
                             }),
                     )
@@ -1267,7 +1400,13 @@ impl BatteryWidget {
                                 .children(chunk.iter().enumerate().map(|(ci, dev)| {
                                     let name =
                                         self.config.resolve_name(&dev.id, &dev.name).to_string();
-                                    render_compact_chip(row_idx * per_row + ci, dev, name, palette)
+                                    render_compact_chip(
+                                        row_idx * per_row + ci,
+                                        dev,
+                                        name,
+                                        lang,
+                                        palette,
+                                    )
                                 }))
                         },
                     )),
@@ -1291,6 +1430,7 @@ impl Render for BatteryWidget {
                 .into_any_element();
         }
 
+        let lang = self.config.language;
         let visible = self.visible_devices();
         let active_count = visible.iter().filter(|d| !d.power_state.is_inactive()).count();
         let status_dot_color = if self.polling {
@@ -1342,7 +1482,7 @@ impl Render for BatteryWidget {
                                     .text_sm()
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(palette.text_primary)
-                                    .child("设备电量"),
+                                    .child(lang.pick("设备电量", "VoltDock")),
                             )
                             .child(
                                 div()
@@ -1374,7 +1514,7 @@ impl Render for BatteryWidget {
                                                 palette.text_secondary
                                             }),
                                     )
-                                    .tooltip("立即刷新")
+                                    .tooltip(lang.pick("立即刷新", "Refresh Now"))
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.trigger_refresh(cx);
                                     })),
@@ -1389,7 +1529,7 @@ impl Render for BatteryWidget {
                                             .size(px(13.5))
                                             .text_color(palette.text_secondary),
                                     )
-                                    .tooltip("精简悬浮条")
+                                    .tooltip(lang.pick("精简悬浮条", "Compact Bar"))
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_compact_mode(window, cx);
                                     })),
@@ -1413,9 +1553,9 @@ impl Render for BatteryWidget {
                                             }),
                                     )
                                     .tooltip(if self.config.always_on_top {
-                                        "取消置顶"
+                                        lang.pick("取消置顶", "Unpin from top")
                                     } else {
-                                        "始终置顶"
+                                        lang.pick("始终置顶", "Always on top")
                                     })
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_always_on_top(window, cx);
@@ -1435,7 +1575,7 @@ impl Render for BatteryWidget {
                                                 palette.text_secondary
                                             }),
                                     )
-                                    .tooltip("设备扫描与自定义插件")
+                                    .tooltip(lang.pick("设备扫描与自定义插件", "Device Scanner & Plugins"))
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_scanner(window, cx);
                                     })),
@@ -1454,7 +1594,7 @@ impl Render for BatteryWidget {
                                                 palette.text_secondary
                                             }),
                                     )
-                                    .tooltip("设置与诊断")
+                                    .tooltip(lang.pick("设置与诊断", "Settings & Logs"))
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_settings(window, cx);
                                     })),
@@ -1469,7 +1609,7 @@ impl Render for BatteryWidget {
                                             .size(px(13.5))
                                             .text_color(palette.text_secondary),
                                     )
-                                    .tooltip("收起到系统托盘")
+                                    .tooltip(lang.pick("收起到系统托盘", "Hide to Tray"))
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.hide_to_tray(window, cx);
                                     })),
@@ -1498,9 +1638,15 @@ impl Render for BatteryWidget {
                                         .text_xs()
                                         .text_color(palette.text_secondary)
                                         .child(if self.polling {
-                                            "正在检测已连接的无线设备..."
+                                            lang.pick(
+                                                "正在检测已连接的无线设备...",
+                                                "Scanning connected wireless devices...",
+                                            )
                                         } else {
-                                            "暂无已连接的无线设备"
+                                            lang.pick(
+                                                "暂无已连接的无线设备",
+                                                "No connected wireless devices",
+                                            )
                                         }),
                                 )
                                 .when(!self.polling, |inner| {
@@ -1511,7 +1657,7 @@ impl Render for BatteryWidget {
                                                 Button::new("btn-rescan")
                                                     .secondary()
                                                     .xsmall()
-                                                    .label("重新刷新")
+                                                    .label(lang.pick("重新刷新", "Refresh"))
                                                     .on_click(cx.listener(|this, _, _, cx| {
                                                         this.trigger_refresh(cx);
                                                     })),
@@ -1521,7 +1667,7 @@ impl Render for BatteryWidget {
                                                     Button::new("btn-empty-scan")
                                                         .ghost()
                                                         .xsmall()
-                                                        .label("扫描设备")
+                                                        .label(lang.pick("扫描设备", "Scan Devices"))
                                                         .on_click(cx.listener(|this, _, window, cx| {
                                                             this.toggle_scanner(window, cx);
                                                         })),
@@ -1538,6 +1684,7 @@ impl Render for BatteryWidget {
                             dev,
                             name,
                             self.config.low_battery_threshold,
+                            lang,
                             &palette,
                         )
                     })),
@@ -1570,18 +1717,18 @@ pub fn compute_compact_size(
     max_work_h: f32,
 ) -> (f32, f32) {
     if count == 0 {
-        return (196.0, 42.0);
+        return (220.0, 42.0);
     }
     let per_row = per_row.max(1);
     let cols = count.min(per_row);
     let rows = count.div_ceil(per_row).min(4);
     let chips_w = (cols as f32) * 80.0 + (cols.saturating_sub(1) as f32) * 6.0;
     if rows == 1 {
-        let width = (chips_w + 100.0).clamp(196.0, max_work_w.max(196.0));
+        let width = (chips_w + 124.0).clamp(220.0, max_work_w.max(220.0));
         (width, 42.0)
     } else {
         let chips_h = (rows as f32) * 28.0 + (rows.saturating_sub(1) as f32) * 6.0;
-        let width = (chips_w + 18.0).clamp(124.0, max_work_w.max(124.0));
+        let width = (chips_w + 18.0).clamp(132.0, max_work_w.max(132.0));
         let height = (28.0 + chips_h + 18.0).clamp(96.0, max_work_h.max(96.0));
         (width, height)
     }
@@ -1593,9 +1740,9 @@ mod tests {
 
     #[test]
     fn compact_size_handles_empty_single_and_multi_row_layouts() {
-        assert_eq!(compute_compact_size(0, 3, 1920.0, 1080.0), (196.0, 42.0));
-        assert_eq!(compute_compact_size(4, 4, 1920.0, 1080.0), (438.0, 42.0));
+        assert_eq!(compute_compact_size(0, 3, 1920.0, 1080.0), (220.0, 42.0));
+        assert_eq!(compute_compact_size(4, 4, 1920.0, 1080.0), (462.0, 42.0));
         assert_eq!(compute_compact_size(4, 2, 1920.0, 1080.0), (184.0, 108.0));
-        assert_eq!(compute_compact_size(3, 1, 1920.0, 1080.0), (124.0, 142.0));
+        assert_eq!(compute_compact_size(3, 1, 1920.0, 1080.0), (132.0, 142.0));
     }
 }

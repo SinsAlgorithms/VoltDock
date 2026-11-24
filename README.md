@@ -35,7 +35,7 @@
 ### 精简悬浮条模式（单行横条 / 多行网格自适应）
 
 <p align="center">
-  <img src="docs/images/preview-compact-single.png" alt="精简悬浮条（单行横向自适应）" width="438" />
+  <img src="docs/images/preview-compact-single.png" alt="精简悬浮条（单行横向自适应）" width="462" />
 </p>
 <p align="center">
   <img src="docs/images/preview-compact-wrap.png" alt="精简悬浮条（多行暗色网格）" width="196" />
@@ -43,7 +43,7 @@
   <img src="docs/images/preview-compact-wrap-light.png" alt="精简悬浮条（多行亮色网格）" width="196" />
 </p>
 <p align="center">
-  <sub>单行自动横向舒展，多行自动切换带迷你顶栏的对称网格布局，支持抓手/胶囊区直接拖拽与悬停查看设备详情</sub>
+  <sub>单行自动横向舒展，多行自动切换带迷你顶栏的对称网格布局，支持抓手/胶囊区拖拽、置顶切换与悬停查看设备详情</sub>
 </p>
 
 ### 设置抽屉 & 设备扫描与协议探测向导
@@ -54,7 +54,7 @@
   <img src="docs/images/preview-scanner.png" alt="设备扫描与协议探测向导" height="470" />
 </p>
 <p align="center">
-  <sub>左：刷新频率、精简每行设备数、主题、休眠设备保留与开机自启 &nbsp;|&nbsp; 右：一键扫描 HID 驱动通道、试发指令并生成自定义设备插件</sub>
+  <sub>左：刷新频率、精简每行设备数、主题、中英文切换、休眠设备保留与开机自启 &nbsp;|&nbsp; 右：一键扫描 HID 驱动通道、试发指令并生成自定义设备插件</sub>
 </p>
 
 ---
@@ -63,7 +63,9 @@
 
 - **双形态悬浮小组件**：
   - **完整卡片模式**：清晰呈现设备类型图标、连接徽章（`2.4G` / `蓝牙` / `BLE` / `有线`）、充放电状态、精确电量百分比、低电量警示与分级进度条。
-  - **精简悬浮条模式**：单行少设备时呈现 `42px` 超薄横条；当在线设备超出每行上限（1–5 个可调）自动换行时，智能切换为**带迷你拖拽顶栏的对称网格卡片**，保持整体视觉紧凑对齐，鼠标悬停即可查看完整设备名与连接方式。
+  - **精简悬浮条模式**：单行少设备时呈现 `42px` 超薄横条；当在线设备超出每行上限（1–5 个可调）自动换行时，智能切换为**带迷你拖拽顶栏的对称网格卡片**，均配备刷新、**始终置顶**与展开按钮，鼠标悬停即可查看完整设备名与连接方式。
+- **中英文双语界面**：
+  - 支持在设置抽屉中一键实时切换 **中文 / English**（同步生效于悬浮窗卡片、精简条、扫描探测器、托盘菜单与低电量通知，配置自动持久化）。
 - **只显示已连接设备 + 边缘感知自适应扩展**：
   - 未开机或未建立连接的 2.4GHz 接收器默认自动隐藏，窗口尺寸严格贴合当前在线设备数量；也可按需在设置中开启“显示最近休眠的设备”。
   - 根据小组件当前停靠的屏幕工作区边缘自动决定延伸方向——靠左向右扩展、靠右向左扩展、靠底向上扩展、靠顶向下扩展，始终不越过屏幕边界或任务栏。
@@ -111,7 +113,7 @@
 # 单独测试某个自定义插件 JSON 文件
 .\voltdock.exe --test-plugin "%APPDATA%\BatteryDisplay\plugins\my_device.json"
 
-# 使用内置演示数据预览界面（card-dark / card-light / compact-single / compact / compact-light / settings / scanner）
+# 使用内置演示数据预览界面（card-dark / card-light / compact-single / compact / compact-light / settings / scanner，可选 --lang zh|en）
 .\voltdock.exe --demo --demo-view card-dark
 ```
 
@@ -195,7 +197,7 @@ VoltDock 会自动扫描以下目录中的 `*.json` 插件文件：
 
 ```text
 VoltDock/
-├── docs/images/          # 界面展示截图
+├── docs/images/          # 界面展示截图（含 en/ 英文截图）
 ├── plugins/examples/     # 自定义设备插件参考模板（HID / 蓝牙 GATT）
 ├── src/
 │   ├── plugins/          # 插件 JSON Schema 解析、通用协议执行器与 HID/蓝牙扫描器

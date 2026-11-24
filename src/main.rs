@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use gpui_kit::*;
 
 use crate::assets::AppAssets;
-use crate::config::{AppConfig, install_panic_hook, sync_autostart_registry};
+use crate::config::{AppConfig, LanguagePreference, install_panic_hook, sync_autostart_registry};
 use crate::manager::{run_single_poll, run_test_single_plugin, spawn_poll_worker};
 use crate::platform_win::{
     SingleInstanceGuard, TrayController, TraySyncState, attach_parent_console,
@@ -41,6 +41,7 @@ VoltDock - 无线外设电量桌面小组件 (2.4GHz + 蓝牙 + 插件化扩展)
   voltdock --test-plugin PATH    单独测试指定路径的插件 JSON 配置文件
   voltdock --demo                以内置示例数据预览 UI（不写入本地配置）
   voltdock --demo-view VIEW      指定预览视图: card-dark | card-light | compact-single | compact | compact-light | settings | scanner
+  voltdock --lang zh|en          指定演示预览界面语言 (默认 zh)
   voltdock --help                显示帮助
 ";
     write_cli_output(msg);
@@ -246,6 +247,18 @@ fn main() {
         return;
     }
 
+    let demo_lang = args
+        .iter()
+        .position(|a| a == "--lang")
+        .and_then(|pos| args.get(pos + 1))
+        .map(|s| {
+            if s.eq_ignore_ascii_case("en") || s.eq_ignore_ascii_case("english") {
+                LanguagePreference::En
+            } else {
+                LanguagePreference::Zh
+            }
+        })
+        .unwrap_or(LanguagePreference::Zh);
     let demo_view = args
         .iter()
         .position(|a| a == "--demo-view")
@@ -257,18 +270,21 @@ fn main() {
             "card-light" => DemoOptions {
                 enabled: true,
                 light_theme: true,
+                lang: demo_lang,
                 ..Default::default()
             },
             "compact-single" => DemoOptions {
                 enabled: true,
                 compact: true,
                 compact_max_per_row: 4,
+                lang: demo_lang,
                 ..Default::default()
             },
             "compact" => DemoOptions {
                 enabled: true,
                 compact: true,
                 compact_max_per_row: 2,
+                lang: demo_lang,
                 ..Default::default()
             },
             "compact-light" => DemoOptions {
@@ -276,20 +292,24 @@ fn main() {
                 light_theme: true,
                 compact: true,
                 compact_max_per_row: 2,
+                lang: demo_lang,
                 ..Default::default()
             },
             "settings" => DemoOptions {
                 enabled: true,
                 open_settings: true,
+                lang: demo_lang,
                 ..Default::default()
             },
             "scanner" => DemoOptions {
                 enabled: true,
                 open_scanner: true,
+                lang: demo_lang,
                 ..Default::default()
             },
             _ => DemoOptions {
                 enabled: true,
+                lang: demo_lang,
                 ..Default::default()
             },
         }
@@ -317,10 +337,10 @@ fn main() {
         if demo.open_scanner {
             (SCANNER_WIDTH as i32, 620)
         } else if demo.open_settings {
-            (CARD_WIDTH as i32, 560)
+            (CARD_WIDTH as i32, 636)
         } else if demo.compact {
             if demo.compact_max_per_row >= 4 {
-                (438, 42)
+                (462, 42)
             } else {
                 (184, 108)
             }
@@ -330,7 +350,7 @@ fn main() {
     } else {
         (
             if config.compact_mode {
-                196
+                220
             } else {
                 CARD_WIDTH as i32
             },
@@ -380,6 +400,7 @@ fn main() {
             visible: true,
             always_on_top: config.always_on_top,
             compact_mode: config.compact_mode,
+            language: config.language,
         });
         (Some(ctrl), Some(rx))
     };
