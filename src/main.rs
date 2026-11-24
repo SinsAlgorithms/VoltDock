@@ -40,7 +40,7 @@ VoltDock - 无线外设电量桌面小组件 (2.4GHz + 蓝牙 + 插件化扩展)
   voltdock --plugins             列出插件搜索目录与已加载的自定义插件
   voltdock --test-plugin PATH    单独测试指定路径的插件 JSON 配置文件
   voltdock --demo                以内置示例数据预览 UI（不写入本地配置）
-  voltdock --demo-view VIEW      指定预览视图: card-dark | card-light | compact | settings | scanner
+  voltdock --demo-view VIEW      指定预览视图: card-dark | card-light | compact-single | compact | compact-light | settings | scanner
   voltdock --help                显示帮助
 ";
     write_cli_output(msg);
@@ -259,8 +259,21 @@ fn main() {
                 light_theme: true,
                 ..Default::default()
             },
+            "compact-single" => DemoOptions {
+                enabled: true,
+                compact: true,
+                compact_max_per_row: 4,
+                ..Default::default()
+            },
             "compact" => DemoOptions {
                 enabled: true,
+                compact: true,
+                compact_max_per_row: 2,
+                ..Default::default()
+            },
+            "compact-light" => DemoOptions {
+                enabled: true,
+                light_theme: true,
                 compact: true,
                 compact_max_per_row: 2,
                 ..Default::default()
@@ -306,7 +319,11 @@ fn main() {
         } else if demo.open_settings {
             (CARD_WIDTH as i32, 560)
         } else if demo.compact {
-            (260, 76)
+            if demo.compact_max_per_row >= 4 {
+                (438, 42)
+            } else {
+                (184, 108)
+            }
         } else {
             (CARD_WIDTH as i32, 340)
         }

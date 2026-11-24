@@ -396,7 +396,7 @@ impl BatteryWidget {
     }
 
     fn effective_compact_per_row(&self, max_work_w_logical: f32) -> usize {
-        let avail_for_chips = (max_work_w_logical - 120.0).max(80.0);
+        let avail_for_chips = (max_work_w_logical - 104.0).max(80.0);
         let max_fit = (((avail_for_chips + 6.0) / 86.0).floor() as usize).max(1);
         self.config.compact_max_per_row.clamp(1, max_fit.min(6))
     }
@@ -404,17 +404,8 @@ impl BatteryWidget {
     pub fn compute_target_size(&self, max_work_w: f32, max_work_h: f32) -> (f32, f32) {
         let count = self.visible_devices().len();
         if self.config.compact_mode {
-            if count == 0 {
-                return (196.0, 42.0);
-            }
             let per_row = self.effective_compact_per_row(max_work_w);
-            let cols = count.min(per_row);
-            let rows = count.div_ceil(per_row).min(4);
-            let chips_w = (cols as f32) * 80.0 + (cols.saturating_sub(1) as f32) * 6.0;
-            let width = (32.0 + chips_w + 8.0 + 54.0).min(max_work_w.max(196.0));
-            let height = ((rows as f32) * 28.0 + (rows.saturating_sub(1) as f32) * 6.0 + 14.0)
-                .clamp(42.0, max_work_h.max(42.0));
-            return (width, height);
+            return compute_compact_size(count, per_row, max_work_w, max_work_h);
         }
 
         let width = if self.show_scanner {
@@ -1044,12 +1035,57 @@ impl BatteryWidget {
         }
     }
 
+    fn render_compact_actions(
+        &self,
+        palette: &Palette,
+        icon_px: f32,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        h_flex()
+            .items_center()
+            .gap_0p5()
+            .child(
+                Button::new("compact-refresh")
+                    .ghost()
+                    .xsmall()
+                    .icon(
+                        Icon::default()
+                            .path("icons/refresh.svg")
+                            .size(px(icon_px))
+                            .text_color(if self.polling {
+                                palette.accent
+                            } else {
+                                palette.text_secondary
+                            }),
+                    )
+                    .tooltip("立即刷新")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.trigger_refresh(cx);
+                    })),
+            )
+            .child(
+                Button::new("compact-expand")
+                    .ghost()
+                    .xsmall()
+                    .icon(
+                        Icon::default()
+                            .path("icons/expand.svg")
+                            .size(px(icon_px))
+                            .text_color(palette.text_primary),
+                    )
+                    .tooltip("展开完整卡片")
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.toggle_compact_mode(window, cx);
+                    })),
+            )
+    }
+
     fn render_compact_bar(
         &self,
         palette: &Palette,
         window: &Window,
         cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    ) -> AnyElement {
         let visible = self.visible_devices();
         let scale = window.scale_factor().max(1.0);
         let max_work_w = self
@@ -1058,114 +1094,185 @@ impl BatteryWidget {
             .map(|wa| wa.width() as f32 / scale - 16.0)
             .unwrap_or(1200.0);
         let per_row = self.effective_compact_per_row(max_work_w);
+        let count = visible.len();
+        let rows = if count == 0 {
+            1
+        } else {
+            count.div_ceil(per_row).min(4)
+        };
 
-        h_flex()
+        if rows <= 1 {
+            return h_flex()
+                .size_full()
+                .items_center()
+                .justify_between()
+                .rounded(px(10.0))
+                .bg(palette.window_bg)
+                .border_1()
+                .border_color(palette.window_border)
+                .overflow_hidden()
+                .child(
+                    h_flex()
+                        .id("compact-drag-area")
+                        .flex_1()
+                        .h_full()
+                        .min_w_0()
+                        .pl_2()
+                        .pr_1p5()
+                        .py(px(6.0))
+                        .items_center()
+                        .gap_1p5()
+                        .cursor(CursorStyle::OpenHand)
+                        .window_control_area(WindowControlArea::Drag)
+                        .child(
+                            div()
+                                .flex_shrink_0()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(
+                                    Icon::default()
+                                        .path("icons/grip.svg")
+                                        .size(px(12.0))
+                                        .text_color(palette.text_muted),
+                                ),
+                        )
+                        .when(visible.is_empty(), |this| {
+                            this.child(
+                                div()
+                                    .text_xs()
+                                    .text_color(palette.text_secondary)
+                                    .child(if self.polling {
+                                        "正在检测设备..."
+                                    } else {
+                                        "无已连接设备"
+                                    }),
+                            )
+                        })
+                        .children(visible.iter().enumerate().map(|(ci, dev)| {
+                            let name = self.config.resolve_name(&dev.id, &dev.name).to_string();
+                            render_compact_chip(ci, dev, name, palette)
+                        })),
+                )
+                .child(
+                    div()
+                        .flex_shrink_0()
+                        .w(px(1.0))
+                        .h(px(18.0))
+                        .bg(palette.divider),
+                )
+                .child(
+                    div()
+                        .flex_shrink_0()
+                        .h_full()
+                        .px_1p5()
+                        .flex()
+                        .items_center()
+                        .child(self.render_compact_actions(palette, 13.0, cx)),
+                )
+                .into_any_element();
+        }
+
+        let cols = count.min(per_row);
+        let active_count = visible.iter().filter(|d| !d.power_state.is_inactive()).count();
+        let status_dot_color = if self.polling {
+            palette.amber
+        } else if active_count > 0 {
+            palette.emerald
+        } else {
+            palette.slate
+        };
+
+        v_flex()
             .size_full()
-            .items_center()
-            .justify_between()
-            .rounded(px(8.0))
+            .rounded(px(10.0))
             .bg(palette.window_bg)
             .border_1()
             .border_color(palette.window_border)
+            .overflow_hidden()
             .child(
                 h_flex()
-                    .id("compact-drag-area")
-                    .flex_1()
-                    .h_full()
-                    .min_w_0()
-                    .pl_2()
-                    .pr_1()
-                    .py(px(7.0))
+                    .w_full()
+                    .h(px(28.0))
+                    .flex_shrink_0()
                     .items_center()
-                    .gap_1p5()
-                    .cursor(CursorStyle::OpenHand)
-                    .window_control_area(WindowControlArea::Drag)
+                    .justify_between()
+                    .bg(palette.header_bg)
+                    .border_b_1()
+                    .border_color(palette.divider)
                     .child(
-                        div()
-                            .flex_shrink_0()
-                            .flex()
+                        h_flex()
+                            .id("compact-drag-header")
+                            .flex_1()
+                            .h_full()
+                            .min_w_0()
+                            .pl_2()
+                            .pr_1()
                             .items_center()
-                            .justify_center()
+                            .gap_1p5()
+                            .cursor(CursorStyle::OpenHand)
+                            .window_control_area(WindowControlArea::Drag)
                             .child(
                                 Icon::default()
                                     .path("icons/grip.svg")
-                                    .size(px(12.0))
+                                    .size(px(11.0))
                                     .text_color(palette.text_muted),
-                            ),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .justify_center()
-                            .gap(px(6.0))
-                            .when(visible.is_empty(), |this| {
+                            )
+                            .child(
+                                div()
+                                    .size(px(6.0))
+                                    .rounded_full()
+                                    .flex_shrink_0()
+                                    .bg(status_dot_color),
+                            )
+                            .when(cols >= 2, |this| {
                                 this.child(
                                     div()
-                                        .text_xs()
+                                        .text_size(px(10.5))
+                                        .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(palette.text_secondary)
-                                        .child(if self.polling {
-                                            "正在检测设备..."
-                                        } else {
-                                            "无已连接设备"
-                                        }),
+                                        .truncate()
+                                        .child(format!("{count} 设备")),
                                 )
-                            })
-                            .children(visible.chunks(per_row).enumerate().map(|(row_idx, chunk)| {
-                                h_flex()
-                                    .id(("compact-row", row_idx))
-                                    .items_center()
-                                    .gap(px(6.0))
-                                    .children(chunk.iter().enumerate().map(|(ci, dev)| {
-                                        let name =
-                                            self.config.resolve_name(&dev.id, &dev.name).to_string();
-                                        render_compact_chip(row_idx * per_row + ci, dev, name, palette)
-                                    }))
-                            })),
+                            }),
+                    )
+                    .child(
+                        div()
+                            .flex_shrink_0()
+                            .h_full()
+                            .pr_1p5()
+                            .flex()
+                            .items_center()
+                            .child(self.render_compact_actions(palette, 12.0, cx)),
                     ),
             )
             .child(
-                h_flex()
-                    .flex_shrink_0()
-                    .h_full()
-                    .pr_2()
-                    .items_center()
-                    .gap_0p5()
-                    .child(
-                        Button::new("compact-refresh")
-                            .ghost()
-                            .xsmall()
-                            .icon(
-                                Icon::default()
-                                    .path("icons/refresh.svg")
-                                    .size(px(13.0))
-                                    .text_color(if self.polling {
-                                        palette.accent
-                                    } else {
-                                        palette.text_secondary
-                                    }),
-                            )
-                            .tooltip("立即刷新")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.trigger_refresh(cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("compact-expand")
-                            .ghost()
-                            .xsmall()
-                            .icon(
-                                Icon::default()
-                                    .path("icons/expand.svg")
-                                    .size(px(13.0))
-                                    .text_color(palette.text_primary),
-                            )
-                            .tooltip("展开完整卡片")
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.toggle_compact_mode(window, cx);
-                            })),
-                    ),
+                v_flex()
+                    .id("compact-drag-area")
+                    .w_full()
+                    .flex_1()
+                    .p_2()
+                    .gap(px(6.0))
+                    .justify_center()
+                    .cursor(CursorStyle::OpenHand)
+                    .window_control_area(WindowControlArea::Drag)
+                    .children(visible.chunks(per_row).take(4).enumerate().map(
+                        |(row_idx, chunk)| {
+                            h_flex()
+                                .id(("compact-row", row_idx))
+                                .w_full()
+                                .items_center()
+                                .when(cols == 1, |this| this.justify_center())
+                                .gap(px(6.0))
+                                .children(chunk.iter().enumerate().map(|(ci, dev)| {
+                                    let name =
+                                        self.config.resolve_name(&dev.id, &dev.name).to_string();
+                                    render_compact_chip(row_idx * per_row + ci, dev, name, palette)
+                                }))
+                        },
+                    )),
             )
+            .into_any_element()
     }
 }
 
@@ -1198,7 +1305,7 @@ impl Render for BatteryWidget {
 
         v_flex()
             .size_full()
-            .rounded(px(8.0))
+            .rounded(px(10.0))
             .bg(palette.window_bg)
             .border_1()
             .border_color(palette.window_border)
@@ -1450,5 +1557,45 @@ impl Render for BatteryWidget {
                 this.child(render_scanner_panel(self, &palette, cx))
             })
             .into_any_element()
+    }
+}
+
+/// Computes compact widget outer logical size `(width, height)` for `count` visible
+/// devices and `per_row` chips per row. Single-row uses a 42px horizontal pill;
+/// multi-row uses a compact grid card topped by a slim 28px draggable header.
+pub fn compute_compact_size(
+    count: usize,
+    per_row: usize,
+    max_work_w: f32,
+    max_work_h: f32,
+) -> (f32, f32) {
+    if count == 0 {
+        return (196.0, 42.0);
+    }
+    let per_row = per_row.max(1);
+    let cols = count.min(per_row);
+    let rows = count.div_ceil(per_row).min(4);
+    let chips_w = (cols as f32) * 80.0 + (cols.saturating_sub(1) as f32) * 6.0;
+    if rows == 1 {
+        let width = (chips_w + 100.0).clamp(196.0, max_work_w.max(196.0));
+        (width, 42.0)
+    } else {
+        let chips_h = (rows as f32) * 28.0 + (rows.saturating_sub(1) as f32) * 6.0;
+        let width = (chips_w + 18.0).clamp(124.0, max_work_w.max(124.0));
+        let height = (28.0 + chips_h + 18.0).clamp(96.0, max_work_h.max(96.0));
+        (width, height)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::compute_compact_size;
+
+    #[test]
+    fn compact_size_handles_empty_single_and_multi_row_layouts() {
+        assert_eq!(compute_compact_size(0, 3, 1920.0, 1080.0), (196.0, 42.0));
+        assert_eq!(compute_compact_size(4, 4, 1920.0, 1080.0), (438.0, 42.0));
+        assert_eq!(compute_compact_size(4, 2, 1920.0, 1080.0), (184.0, 108.0));
+        assert_eq!(compute_compact_size(3, 1, 1920.0, 1080.0), (124.0, 142.0));
     }
 }

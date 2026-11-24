@@ -1,37 +1,56 @@
-# VoltDock
+<div align="center">
 
-**VoltDock** 是一款基于 **Rust + GPUI Kit (`gpui-kit`)** 打造的轻量级 Windows 桌面无线外设电量悬浮窗。无需安装各品牌臃肿的官方控制中心，即可统一监控 **2.4GHz 无线接收器 / 有线 USB** 与 **蓝牙（Classic + BLE GATT）** 鼠标、耳机、手柄和键盘的实时电量与充电状态。
+# ⚡ VoltDock
+
+**轻量级 Windows 桌面无线外设电量悬浮窗 · 基于 Rust + GPUI Kit (`gpui-kit`)**
+
+无需安装各品牌臃肿的官方控制中心，统一监控 **2.4GHz 无线接收器 / 有线 USB** 与 **蓝牙（Classic + BLE GATT）** 鼠标、耳机、手柄和键盘的实时电量与充电状态。
+
+![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0284c7?style=flat-square)
+![Rust](https://img.shields.io/badge/Rust-2024%20Edition-ea580c?style=flat-square)
+![UI](https://img.shields.io/badge/UI-GPUI%20Kit-16a34a?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)
+
+</div>
 
 ---
 
 ## 界面预览
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="docs/images/preview-card-dark.png" alt="暗色完整卡片模式" /><br/>
-      <sub><b>完整卡片模式（暗色主题）</b> · 多设备电量与状态一目了然</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="docs/images/preview-card-light.png" alt="亮色完整卡片模式" /><br/>
-      <sub><b>完整卡片模式（亮色主题）</b> · 清爽高对比配色与低电量提醒</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="docs/images/preview-compact-wrap.png" alt="精简悬浮条换行模式" /><br/>
-      <sub><b>精简悬浮条模式</b> · 支持按每行数量自动换行、抓手拖拽与悬浮提示</sub>
-    </td>
-    <td align="center">
-      <img src="docs/images/preview-settings.png" alt="设置面板" /><br/>
-      <sub><b>设置抽屉</b> · 刷新频率、精简列数、主题、休眠设备显示与自启开关</sub>
-    </td>
-  </tr>
-</table>
+### 完整卡片模式（暗色 / 亮色主题）
 
 <p align="center">
-  <img src="docs/images/preview-scanner.png" alt="设备扫描与协议探测向导" width="460" /><br/>
-  <sub><b>内置设备扫描与协议探测向导</b> · 一键扫描 HID 驱动通道、试发指令并生成自定义设备插件</sub>
+  <img src="docs/images/preview-card-dark.png" alt="暗色完整卡片模式" width="315" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/images/preview-card-light.png" alt="亮色完整卡片模式" width="315" />
+</p>
+<p align="center">
+  <sub>设备图标、连接徽章（<code>2.4G</code> / <code>蓝牙</code> / <code>有线</code>）、充放电状态、分级进度条与低电量高亮警示</sub>
+</p>
+
+### 精简悬浮条模式（单行横条 / 多行网格自适应）
+
+<p align="center">
+  <img src="docs/images/preview-compact-single.png" alt="精简悬浮条（单行横向自适应）" width="438" />
+</p>
+<p align="center">
+  <img src="docs/images/preview-compact-wrap.png" alt="精简悬浮条（多行暗色网格）" width="196" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/images/preview-compact-wrap-light.png" alt="精简悬浮条（多行亮色网格）" width="196" />
+</p>
+<p align="center">
+  <sub>单行自动横向舒展，多行自动切换带迷你顶栏的对称网格布局，支持抓手/胶囊区直接拖拽与悬停查看设备详情</sub>
+</p>
+
+### 设置抽屉 & 设备扫描与协议探测向导
+
+<p align="center">
+  <img src="docs/images/preview-settings.png" alt="设置抽屉" height="470" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/images/preview-scanner.png" alt="设备扫描与协议探测向导" height="470" />
+</p>
+<p align="center">
+  <sub>左：刷新频率、精简每行设备数、主题、休眠设备保留与开机自启 &nbsp;|&nbsp; 右：一键扫描 HID 驱动通道、试发指令并生成自定义设备插件</sub>
 </p>
 
 ---
@@ -40,7 +59,7 @@
 
 - **双形态悬浮小组件**：
   - **完整卡片模式**：清晰呈现设备类型图标、连接徽章（`2.4G` / `蓝牙` / `BLE` / `有线`）、充放电状态、精确电量百分比、低电量警示与分级进度条。
-  - **精简悬浮条模式**：紧凑型电量胶囊网格，支持自定义每行显示数量（1–5 个）并自动换行，鼠标悬停查看完整设备名，按住左侧抓手或胶囊区即可自由拖动桌面位置。
+  - **精简悬浮条模式**：单行少设备时呈现 `42px` 超薄横条；当在线设备超出每行上限（1–5 个可调）自动换行时，智能切换为**带迷你拖拽顶栏的对称网格卡片**，保持整体视觉紧凑对齐，鼠标悬停即可查看完整设备名与连接方式。
 - **只显示已连接设备 + 边缘感知自适应扩展**：
   - 未开机或未建立连接的 2.4GHz 接收器默认自动隐藏，窗口尺寸严格贴合当前在线设备数量；也可按需在设置中开启“显示最近休眠的设备”。
   - 根据小组件当前停靠的屏幕工作区边缘自动决定延伸方向——靠左向右扩展、靠右向左扩展、靠底向上扩展、靠顶向下扩展，始终不越过屏幕边界或任务栏。
@@ -88,7 +107,7 @@
 # 单独测试某个自定义插件 JSON 文件
 .\voltdock.exe --test-plugin "%APPDATA%\BatteryDisplay\plugins\my_device.json"
 
-# 使用内置演示数据预览界面（card-dark / card-light / compact / settings / scanner）
+# 使用内置演示数据预览界面（card-dark / card-light / compact-single / compact / compact-light / settings / scanner）
 .\voltdock.exe --demo --demo-view card-dark
 ```
 
