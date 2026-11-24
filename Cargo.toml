@@ -1,6 +1,6 @@
 [package]
 name = "voltdock"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "VoltDock — Lightweight Windows desktop battery widget for 2.4GHz and Bluetooth wireless peripherals built with Rust and GPUI Kit"
 

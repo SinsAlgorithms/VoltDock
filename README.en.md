@@ -93,7 +93,7 @@ Monitor real-time battery level and charging status for **2.4GHz USB dongle / wi
 
 ## Quick Start
 
-Download the prebuilt Windows x64 binary (`VoltDock-v0.2.0-windows-x64.zip` or `voltdock-v0.2.0-windows-x64.exe`) from [GitHub Releases](https://github.com/SinsAlgorithms/VoltDock/releases/latest) and run `voltdock.exe` directly — no runtime installer required (re-launching wakes and focuses the existing instance).
+Download the prebuilt Windows x64 package (`.zip` archive or standalone `.exe`) from [GitHub Releases](https://github.com/SinsAlgorithms/VoltDock/releases/latest) and run `voltdock.exe` directly — no runtime installer required (re-launching wakes and focuses the existing instance).
 
 ### CLI Diagnostics & Utilities
 
