@@ -1,0 +1,18 @@
+# Build outputs
+/target/
+**/*.rs.bk
+
+# Local machine toolchain overrides (must not be uploaded)
+/.cargo/config.toml
+
+# Logs, temp & OS files
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories
+.vscode/
+.idea/

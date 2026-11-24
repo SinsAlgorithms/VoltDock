@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "custom-gamesir-nova2",
+  "name": "GameSir Nova 2 Lite (示例插件)",
+  "brand": "GameSir",
+  "kind": "Gamepad",
+  "connection": "Dongle24G",
+  "enabled": true,
+  "priority": 120,
+  "transport": "hid",
+  "match": {
+    "vid": "0x3537",
+    "pids": ["0x2106"],
+    "usage_page": "0xFF7A",
+    "min_input_len": 65,
+    "min_output_len": 65
+  },
+  "protocol": {
+    "mode": "output_input",
+    "report_len": 65,
+    "request_hex": "00 01 01",
+    "timeout_ms": 1000,
+    "max_reads": 10,
+    "response_min_len": 20,
+    "response_match": [
+      { "offset": 1, "equals": "0x01" }
+    ],
+    "response_ignore": [
+      [
+        { "offset": 1, "equals": "0xF4" },
+        { "offset": 2, "equals": "0x00" }
+      ]
+    ],
+    "level": {
+      "offset": 19,
+      "mask": "0xFF",
+      "scale_max": 100,
+      "min_valid": 0,
+      "max_valid": 100,
+      "charging_special_value": "0xFF"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "custom-mchose-a7",
+  "name": "MCHOSE A7 Ultra (示例插件)",
+  "brand": "MCHOSE",
+  "kind": "Mouse",
+  "connection": "Dongle24G",
+  "enabled": true,
+  "priority": 120,
+  "transport": "hid",
+  "match": {
+    "vid": "0x5253",
+    "pids": ["0x1020"],
+    "usage_page": "0xFF01",
+    "usage": "0x0001"
+  },
+  "protocol": {
+    "mode": "feature_report",
+    "report_id": "0x11",
+    "report_len": 21,
+    "request_hex": "11 06",
+    "request_xor_mask": "0xFF",
+    "request_xor_start": 1,
+    "checksum": "none",
+    "delay_ms": 60,
+    "timeout_ms": 400,
+    "retries": 3,
+    "response_xor_mask": "0xFF",
+    "response_xor_start": 1,
+    "response_min_len": 13,
+    "response_match": [
+      { "offset": 0, "equals": "0x11" },
+      { "offset": 1, "equals": "0x06" },
+      { "offset": 2, "equals": "0x53" },
+      { "offset": 3, "equals": "0x52" }
+    ],
+    "level": {
+      "offset": 11,
+      "mask": "0xFF",
+      "scale_max": 100,
+      "min_valid": 0,
+      "max_valid": 100
+    },
+    "charging": {
+      "offset": 12,
+      "mask": "0xFF",
+      "nonzero": true
+    }
+  }
+}

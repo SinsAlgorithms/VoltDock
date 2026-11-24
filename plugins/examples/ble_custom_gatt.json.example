@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "custom-ble-device",
+  "name": "自定义蓝牙设备 (示例插件)",
+  "brand": "Custom",
+  "kind": "Keyboard",
+  "connection": "BluetoothLE",
+  "enabled": true,
+  "priority": 100,
+  "transport": "bluetooth",
+  "match": {
+    "name_contains": "MyBLEDevice",
+    "mac_prefix": ""
+  },
+  "bt_options": {
+    "gatt_service_uuid": "180F",
+    "gatt_char_uuid": "2A19",
+    "level_offset": 0,
+    "scale_max": 100,
+    "override_kind": true,
+    "ignore_device": false
+  }
+}

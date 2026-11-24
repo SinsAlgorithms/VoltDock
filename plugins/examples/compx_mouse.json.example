@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "custom-compx-mouse",
+  "name": "CompX 方案无线鼠标 (VGN/ATK/蜻蜓等示例)",
+  "brand": "CompX",
+  "kind": "Mouse",
+  "connection": "Dongle24G",
+  "enabled": true,
+  "priority": 100,
+  "transport": "hid",
+  "match": {
+    "usage_page": "0xFF02",
+    "usage": "0x0002",
+    "min_output_len": 17
+  },
+  "protocol": {
+    "mode": "output_input",
+    "report_len": 17,
+    "request_hex": "08 04",
+    "checksum": "comp_x55",
+    "timeout_ms": 350,
+    "max_reads": 4,
+    "response_min_len": 10,
+    "response_match": [
+      { "offset": 0, "equals": "0x08" },
+      { "offset": 1, "equals": "0x04" }
+    ],
+    "level": {
+      "offset": 6,
+      "mask": "0xFF",
+      "scale_max": 100,
+      "min_valid": 0,
+      "max_valid": 100
+    },
+    "charging": {
+      "offset": 7,
+      "mask": "0xFF",
+      "nonzero": true
+    }
+  }
+}
