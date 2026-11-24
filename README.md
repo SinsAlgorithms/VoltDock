@@ -11,6 +11,10 @@
 ![UI](https://img.shields.io/badge/UI-GPUI%20Kit-16a34a?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)
 
+<p>
+  <b>简体中文</b> &nbsp;|&nbsp; <a href="README.en.md">English</a>
+</p>
+
 </div>
 
 ---
@@ -87,7 +91,7 @@
 
 ## 快速使用
 
-直接运行编译产物 `voltdock.exe` 即可在桌面显示电量小组件（若后台已在运行，再次打开会自动唤醒并置前）。
+可直接前往 [GitHub Releases](https://github.com/SinsAlgorithms/VoltDock/releases/latest) 下载预编译绿色版，或运行编译产物 `voltdock.exe` 即可在桌面显示电量小组件（若后台已在运行，再次打开会自动唤醒并置前）。
 
 ### 命令行辅助工具
 
@@ -203,7 +207,8 @@ VoltDock/
 │   └── platform_win.rs   # 系统托盘、单实例唤醒与边缘感知窗口定位引擎
 ├── Cargo.toml
 ├── LICENSE
-└── README.md
+├── README.md
+└── README.en.md
 ```
 
 ---
